@@ -1,0 +1,15 @@
+[Unit]
+Description=BUSY Bar System Monitor Server
+After=network.target
+
+[Service]
+Type=simple
+# %h automatically expands to the user's home directory (/home/deck on SteamOS)
+WorkingDirectory=%h/system-monitor
+ExecStart=/usr/bin/env node index.js --server
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target
