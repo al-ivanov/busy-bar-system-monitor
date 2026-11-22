@@ -1,0 +1,16 @@
+[Unit]
+Description=Steam Machine Resource Monitor for BUSY Bar
+After=network.target
+
+[Service]
+Type=simple
+# Adjust path to where steam-machine-monitor is cloned
+WorkingDirectory=%h/steam-machine-monitor
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+# Environment variables if using Wi-Fi:
+# Environment="BUSYBAR_HOST=192.168.1.150"
+
+[Install]
+WantedBy=default.target

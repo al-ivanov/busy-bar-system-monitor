@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "version": 1,
+  "fields": {
+    "connection": {
+      "type": "enum",
+      "label": "Connection",
+      "description": "How BUSY Bar reaches your computer",
+      "default": "USB",
+      "options": [
+        { "value": "USB", "label": "USB (10.0.4.1)" },
+        { "value": "WiFi", "label": "Wi-Fi (Custom IP)" }
+      ]
+    },
+    "host_ip": {
+      "type": "string",
+      "label": "Host IP",
+      "description": "Computer IP address (used if Wi-Fi)",
+      "default": "10.0.4.1",
+      "min_length": 1,
+      "max_length": 64
+    },
+    "host_port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Metrics agent port",
+      "default": 9100,
+      "min": 1,
+      "max": 65535,
+      "step": 1
+    },
+    "interval_sec": {
+      "type": "integer",
+      "label": "Interval",
+      "description": "Update interval in seconds",
+      "default": 2,
+      "min": 1,
+      "max": 60,
+      "step": 1
+    }
+  }
+}

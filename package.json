@@ -1,0 +1,40 @@
+{
+  "name": "system-monitor",
+  "version": "1.0.0",
+  "description": "Cross-platform System Resource Monitor (Windows, macOS, Linux) for BUSY Bar 72x16 LED display",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "system-monitor": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "widget": "node index.js",
+    "server": "node index.js --server",
+    "both": "node index.js --both",
+    "build": "busy-cli build",
+    "app:install": "busy-cli app install",
+    "app:run": "busy-cli app run",
+    "app:stop": "busy-cli app stop",
+    "app:uninstall": "busy-cli app uninstall",
+    "icons": "node scripts/generate_icons.js",
+    "test": "node index.js --dry-run"
+  },
+  "keywords": [
+    "busybar",
+    "busy-cli",
+    "system-monitor",
+    "hardware-monitor",
+    "windows",
+    "macos",
+    "linux",
+    "steamos",
+    "steam-machine"
+  ],
+  "author": "Aleksandr Ivanov",
+  "license": "MIT",
+  "devDependencies": {
+    "@busy-app/busy-lib": "^0.21.1",
+    "@busy-app/cli": "^0.6.0"
+  }
+}

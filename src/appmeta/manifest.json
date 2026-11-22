@@ -1,0 +1,10 @@
+{
+  "format_version": 2,
+  "id": "app.system.monitor",
+  "name": "System Monitor",
+  "version": "1.0.0",
+  "api_version": "27.12.0",
+  "description": "Cross-platform system resource monitor (Windows, macOS, Linux)",
+  "author": "Aleksandr Ivanov",
+  "heap_size_kib": 128
+}
