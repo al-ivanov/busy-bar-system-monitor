@@ -4,6 +4,20 @@
 
 ---
 
+## 🎛️ Управление на BUSY Bar (Энкодер и Кнопки)
+
+В нативном приложении на самом BUSY Bar (режим **APPS**):
+* **Прокрутка колесика энкодера (по или против часовой стрелки)** либо **нажатие на колесико (кнопка OK)**:
+  * **Экран 1: Загрузка в %** — `CPU %`, `GPU %`, `RAM %`
+  * **Экран 2: Температуры** — `CPU °C`, `GPU °C`, `RAM %`
+  *(Переключение происходит мгновенно с перерисовкой экрана)*.
+* **Короткое нажатие кнопки Back**:
+  * Выход из приложения обратно в системное меню BUSY Bar.
+* **Долгое удержание кнопки Back**:
+  * Аппаратный принудительный выход (встроенная функция прошивки).
+
+---
+
 ## 🔌 Как подключается BUSY Bar (COM-порт или Сеть?)
 
 > **Важный нюанс аппаратной части BUSY Bar:**
@@ -45,7 +59,7 @@
 
 В SteamOS пользовательские службы запускаются через **`systemd --user`**. Они работают как в режиме рабочего стола (Desktop Mode), так и в игровом режиме (Game Mode), и не сбрасываются при системных обновлениях SteamOS.
 
-### Способ 1: Автоматический скрипт (рекомендуется)
+### Быстрая установка (в 1 команду)
 Находясь в папке проекта на SteamOS, выполните:
 ```bash
 ./scripts/install-service.sh
@@ -56,61 +70,29 @@
 - Запустит службу и включит автозапуск при старте системы;
 - Включит режим `linger`, чтобы служба запускалась сразу при включении консоли даже в Game Mode.
 
-### Способ 2: Вручную
-1. Скопируйте файл службы:
-   ```bash
-   mkdir -p ~/.config/systemd/user
-   cp system-monitor.service ~/.config/systemd/user/
-   ```
-
-2. Включите и запустите:
-   ```bash
-   systemctl --user daemon-reload
-   systemctl --user enable --now system-monitor.service
-   ```
-
-3. Чтобы служба стартовала при включении Steam Deck без входа в рабочий стол:
-   ```bash
-   loginctl enable-linger $USER
-   ```
-
 ### Управление службой:
-- **Проверить статус:**
-  ```bash
-  systemctl --user status system-monitor.service
-  ```
-- **Остановить:**
-  ```bash
-  systemctl --user stop system-monitor.service
-  ```
-- **Удалить из автозагрузки:**
-  ```bash
-  ./scripts/uninstall-service.sh
-  ```
+- **Проверить статус:** `systemctl --user status system-monitor.service`
+- **Остановить:** `systemctl --user stop system-monitor.service`
+- **Удалить из автозагрузки:** `./scripts/uninstall-service.sh`
 
 ---
 
 ## 💻 Поддержка операционных систем
 
-| ОС | CPU % | RAM % | GPU % | Сеть (NET) |
-|---|---|---|---|---|
-| **Windows** (10 / 11) | Да (`os.cpus` delta) | Да (Total / Free) | Да (NVIDIA + DirectX 3D Counters) | Да (`netstat -e`) |
-| **macOS** (Apple Silicon / Intel) | Да (`os.cpus` delta) | Да (`vm_stat` / Mach Pages) | Да (дискретные / fallback) | Да (`netstat -ib`) |
-| **Linux / SteamOS** (Steam Machine, Steam Deck) | Да (`/proc/stat`) | Да (`/proc/meminfo`) | Да (AMD `gpu_busy_percent` + NVIDIA) | Да (`/proc/net/dev`) |
+| ОС | CPU % | RAM % | GPU % | Температуры (CPU/GPU) | Сеть (NET) |
+|---|---|---|---|---|---|
+| **Windows** (10 / 11) | Да (`os.cpus` delta) | Да (Total / Free) | Да (NVIDIA + DirectX 3D) | Да (WMI / NVIDIA) | Да (`netstat -e`) |
+| **macOS** (Apple Silicon / Intel) | Да (`os.cpus` delta) | Да (`vm_stat` / Mach Pages) | Да (дискретные / fallback) | Да (датчики / fallback) | Да (`netstat -ib`) |
+| **Linux / SteamOS** (Steam Machine, Steam Deck) | Да (`/proc/stat`) | Да (`/proc/meminfo`) | Да (AMD `gpu_busy_percent` + NVIDIA) | Да (`/sys/class/hwmon` APU + GPU) | Да (`/proc/net/dev`) |
 
 ---
 
 ## 🎮 Пресеты отображения
 
-По умолчанию отображаются:
-1. **CPU**: `[контур + цветная шкала]` `XX%`
-2. **GPU**: `[контур + цветная шкала]` `XX%` *(если GPU не обнаружен — автоматически RAM или NET)*
-3. **RAM**: `[контур + цветная шкала]` `XX%`
-
-**Цвета индикатора:**
-- Зелёный (`#22C55E`): нагрузка < 70%
-- Оранжевый (`#F59E0B`): нагрузка 70% – 89%
-- Красный (`#E60022`): нагрузка ≥ 90%
+**Цвета шкалы:**
+- Зелёный (`#22C55E`): норма (< 70% или < 70°C)
+- Оранжевый (`#F59E0B`): предупреждение (70% – 89% или 70°C – 84°C)
+- Красный (`#E60022`): высокая нагрузка (≥ 90% или ≥ 85°C)
 
 ### Параметры CLI (`index.js`):
 - `--mode auto` — автоопределение GPU (CPU / GPU / RAM)

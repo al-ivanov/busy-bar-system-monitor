@@ -3,7 +3,11 @@
  *
  * Runs inside BUSY Bar (JerryScript) in the APPS menu.
  * Communicates with the Host System Monitor agent over HTTP
- * and renders live CPU, RAM, and GPU/NET stats on the 72x16 LED display.
+ * and renders live stats on the 72x16 LED display.
+ *
+ * Controls:
+ * - Encoder wheel (turn or click OK): Switch between Load % and Temperatures (CPU/GPU)
+ * - Back button (short press): Exit app
  */
 
 var APP_ID = 'app.system.monitor';
@@ -11,6 +15,12 @@ var APP_ID = 'app.system.monitor';
 function getColorForPct(pct) {
   if (pct >= 90) return '#E60022FF'; // Red
   if (pct >= 70) return '#F59E0BFF'; // Amber
+  return '#22C55EFF';                // Green
+}
+
+function getColorForTemp(degC) {
+  if (degC >= 85) return '#E60022FF'; // Red
+  if (degC >= 70) return '#F59E0BFF'; // Amber
   return '#22C55EFF';                // Green
 }
 
@@ -31,10 +41,10 @@ function formatNetRate(bytesPerSec) {
   return Math.round(bytesPerSec) + 'B';
 }
 
-function buildDisplayElements(data) {
+function buildDisplayElements(data, screen) {
   var elements = [];
 
-  // 0. Solid black background with no border
+  // 0. Solid black background with no border (border_width: 0)
   elements.push({
     id: 'bg',
     type: 'rectangle',
@@ -48,25 +58,74 @@ function buildDisplayElements(data) {
     display: 'front',
   });
 
-  var cpu = typeof data.cpu === 'number' ? data.cpu : 0;
-  var gpu = typeof data.gpu === 'number' ? data.gpu : null;
-  var ram = typeof data.ram === 'number' ? data.ram : 0;
-  var netRate = typeof data.netRate === 'number' ? data.netRate : 0;
-
   var rows = [];
-  rows.push({ label: 'CPU', pct: cpu, val: cpu + '%' });
 
-  if (gpu !== null) {
-    rows.push({ label: 'GPU', pct: gpu, val: gpu + '%' });
-    rows.push({ label: 'RAM', pct: ram, val: ram + '%' });
+  if (screen === 1) {
+    // -----------------------------------------------------------------------
+    // Screen 1: Temperatures (CPU & GPU)
+    // -----------------------------------------------------------------------
+    var cpuT = typeof data.cpuTemp === 'number' ? data.cpuTemp : (typeof data.temp === 'number' ? data.temp : null);
+    var gpuT = typeof data.gpuTemp === 'number' ? data.gpuTemp : null;
+    var ram = typeof data.ram === 'number' ? data.ram : 0;
+
+    // Row 1: CPU Temp
+    if (cpuT !== null) {
+      rows.push({
+        label: 'CPU',
+        pct: Math.max(0, Math.min(100, cpuT)),
+        val: cpuT + 'C',
+        color: getColorForTemp(cpuT),
+      });
+    } else {
+      var cpu = typeof data.cpu === 'number' ? data.cpu : 0;
+      rows.push({ label: 'CPU', pct: cpu, val: cpu + '%', color: getColorForPct(cpu) });
+    }
+
+    // Row 2: GPU Temp
+    if (gpuT !== null) {
+      rows.push({
+        label: 'GPU',
+        pct: Math.max(0, Math.min(100, gpuT)),
+        val: gpuT + 'C',
+        color: getColorForTemp(gpuT),
+      });
+    } else if (data.hasGpu && typeof data.gpu === 'number') {
+      rows.push({ label: 'GPU', pct: data.gpu, val: data.gpu + '%', color: getColorForPct(data.gpu) });
+    } else {
+      var netRate = typeof data.netRate === 'number' ? data.netRate : 0;
+      var netFrac = Math.min(1.0, netRate / (10 * 1024 * 1024));
+      var netPct = Math.round(netFrac * 100);
+      rows.push({ label: 'NET', pct: netPct, val: formatNetRate(netRate), color: getColorForPct(netPct) });
+    }
+
+    // Row 3: RAM %
+    rows.push({ label: 'RAM', pct: ram, val: ram + '%', color: getColorForPct(ram) });
+
   } else {
-    rows.push({ label: 'RAM', pct: ram, val: ram + '%' });
-    var netFrac = Math.min(1.0, netRate / (10 * 1024 * 1024));
-    rows.push({
-      label: 'NET',
-      pct: Math.round(netFrac * 100),
-      val: formatNetRate(netRate),
-    });
+    // -----------------------------------------------------------------------
+    // Screen 0: Utilization % (CPU, GPU, RAM)
+    // -----------------------------------------------------------------------
+    var cpu = typeof data.cpu === 'number' ? data.cpu : 0;
+    var gpu = typeof data.gpu === 'number' ? data.gpu : null;
+    var ram = typeof data.ram === 'number' ? data.ram : 0;
+    var netRate = typeof data.netRate === 'number' ? data.netRate : 0;
+
+    rows.push({ label: 'CPU', pct: cpu, val: cpu + '%', color: getColorForPct(cpu) });
+
+    if (gpu !== null) {
+      rows.push({ label: 'GPU', pct: gpu, val: gpu + '%', color: getColorForPct(gpu) });
+      rows.push({ label: 'RAM', pct: ram, val: ram + '%', color: getColorForPct(ram) });
+    } else {
+      rows.push({ label: 'RAM', pct: ram, val: ram + '%', color: getColorForPct(ram) });
+      var netFrac = Math.min(1.0, netRate / (10 * 1024 * 1024));
+      var netPct = Math.round(netFrac * 100);
+      rows.push({
+        label: 'NET',
+        pct: netPct,
+        val: formatNetRate(netRate),
+        color: getColorForPct(netPct),
+      });
+    }
   }
 
   var rowY = [0, 5, 10];
@@ -76,7 +135,7 @@ function buildDisplayElements(data) {
     var y = rowY[i];
     var key = item.label.toLowerCase();
     var pct = Math.max(0, Math.min(100, item.pct));
-    var color = getColorForPct(pct);
+    var color = item.color || getColorForPct(pct);
 
     // Label
     elements.push({
@@ -195,6 +254,11 @@ function main() {
   var isUsbMode = true;
   var wasOffline = true;
 
+  // Screen state: 0 = Load %, 1 = Temperatures
+  var currentScreen = 0;
+  var NUM_SCREENS = 2;
+  var lastMetrics = null;
+
   function clearDisplay() {
     return fetch('http://localhost/api/display/draw?application_name=' + APP_ID, {
       method: 'DELETE',
@@ -226,7 +290,8 @@ function main() {
       })
       .then(function (data) {
         if (!isRunning) return;
-        var elements = buildDisplayElements(data);
+        lastMetrics = data;
+        var elements = buildDisplayElements(data, currentScreen);
 
         // When switching from offline to online, clear leftover offline text first
         if (wasOffline) {
@@ -266,7 +331,7 @@ function main() {
           return;
         }
 
-        drawElements(offlineElements).catch(function () { });
+        drawElements(offlineElements).catch(function () {});
       });
   }
 
@@ -291,10 +356,10 @@ function main() {
           if (doc.values.interval_sec) intervalMs = Math.max(500, Number(doc.values.interval_sec) * 1000);
         }
       })
-      .catch(function () { })
+      .catch(function () {})
       .finally(function () {
-        clearDisplay().catch(function () { });
-        drawElements(renderOffline(host, port)).catch(function () { });
+        clearDisplay().catch(function () {});
+        drawElements(renderOffline(host, port)).catch(function () {});
         fetchMetrics();
         timerId = setInterval(fetchMetrics, intervalMs);
       });
@@ -302,11 +367,32 @@ function main() {
 
   loadSettingsAndStart();
 
+  // Hardware input handling (encoder wheel & buttons)
   if (typeof listen === 'function') {
     listen('input', function (event) {
-      if (event && (event.key === 'back' || event.action === 'long')) {
+      if (!event) return;
+
+      // Short press Back -> Exit app
+      if (event.key === 'back' && event.action === 'short') {
         isRunning = false;
         if (timerId) clearInterval(timerId);
+        return;
+      }
+
+      // Rotate encoder wheel (clockwise or counterclockwise) or click OK
+      if (event.key === 'encoder' || event.key === 'ok') {
+        if (event.key === 'encoder') {
+          var d = event.delta || (event.action === 'clockwise' ? 1 : -1);
+          currentScreen = (currentScreen + (d > 0 ? 1 : -1) + NUM_SCREENS) % NUM_SCREENS;
+        } else if (event.action === 'short' || event.action === 'press') {
+          currentScreen = (currentScreen + 1) % NUM_SCREENS;
+        }
+
+        // Instantly re-render with the new screen
+        if (lastMetrics && !wasOffline) {
+          var elements = buildDisplayElements(lastMetrics, currentScreen);
+          drawElements(elements).catch(function () {});
+        }
       }
     });
   }
